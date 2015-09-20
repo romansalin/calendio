@@ -2,15 +2,15 @@ import logging
 
 from wtforms_tornado import Form as WTForm
 from schematics.exceptions import ValidationError as ModelValidationError
-from wtforms import StringField, PasswordField, BooleanField, validators
+from wtforms import StringField, PasswordField, validators
 from wtforms.validators import ValidationError
 
-from .models import UserModel
+from .models import User
 
 logger = logging.getLogger(__name__)
 
 
-class ModelNotProvidedException(Exception):
+class EmptyException(Exception):
     pass
 
 
@@ -67,7 +67,7 @@ class ModelForm(Form):
     def get_model(self):
         model = getattr(self, '_model', None)
         if model is None:
-            raise ModelNotProvidedException()
+            raise EmptyException()
         return model
 
     def validate(self):
@@ -78,8 +78,8 @@ class ModelForm(Form):
         try:
             obj.validate()
         except ModelValidationError as e:
-            if isinstance(e.message, dict):
-                for field_name, err_msgs in e.message.items():
+            if isinstance(e.messages, dict):
+                for field_name, err_msgs in e.messages.items():
                     errors = getattr(self, field_name).errors
                     if not errors:
                         errors.extend(err_msgs)
@@ -91,31 +91,18 @@ class ModelForm(Form):
         return valid
 
 
-class AdminLoginForm(Form):
-    email = StringField('Email Address', [validators.InputRequired(),
-                                          validators.Email()])
-    password = PasswordField('Password', [validators.InputRequired()])
-
-    text_errors = {
-        'not_found': "Email and password mismatch",
-        'wrong_password': "Email and password mismatch",
-    }
-
-
 class RegistrationForm(ModelForm):
-    first_name = StringField('First Name')
-    last_name = StringField('Last Name')
+    name = StringField('Name')
     email = StringField('Email Address', [validators.InputRequired(),
                                           validators.Email()])
     password = PasswordField('Password', [validators.InputRequired()])
     password_confirmation = PasswordField('Repeat password',
                                           [validators.InputRequired()])
-    t_and_c = BooleanField('Terms and Conditions', default=False)
 
-    _model = UserModel
+    _model = User
     text_errors = {
         "password_mismatch": "Password mismatch",
-        "email_occupied": "Already taken. Sorry.",
+        "email_occupied": "Already taken",
     }
 
     def validate_password_confirmation(self, field):
@@ -132,3 +119,11 @@ class LoginForm(Form):
         'not_found': "Email and password mismatch",
         'wrong_password': "Email and password mismatch",
     }
+
+
+class AccountForm(Form):
+    pass
+
+
+class EventForm(Form):
+    pass

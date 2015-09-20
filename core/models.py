@@ -1,16 +1,14 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from bson.objectid import ObjectId
-from tornado import gen, ioloop
+from tornado import gen
 import motor
 from schematics.models import Model
-from schematics.types import (NumberType, StringType, EmailType, DateTimeType,
-                              BooleanType)
-from pymongo.errors import ConnectionFailure
+from schematics.types import (NumberType, StringType, EmailType, DateType,
+                              DateTimeType)
 
-from settings import MONGO_DB
-from .utils import check_pass, make_pass
+from .utils import check_pass, make_pass, phone_pattern
 
 logger = logging.getLogger(__name__)
 MAX_FIND_LIST_LEN = 100
@@ -74,21 +72,12 @@ class BaseModel(Model):
     @classmethod
     @gen.coroutine
     def find_one(cls, db, query, collection=None, model=True):
-        result = None
         query = cls.process_query(query)
-        for i in cls.reconnect_amount():
-            try:
-                result = yield motor.Op(
-                    db[cls.check_collection(collection)].find_one, query)
-            except ConnectionFailure as e:
-                exceed = yield cls.check_reconnect_tries_and_wait(i,
-                    'find_one')
-                if exceed:
-                    raise e
-            else:
-                if model and result:
-                    result = cls.make_model(result, "find_one", db=db)
-                raise gen.Return(result)
+        result = yield motor.Op(
+            db[cls.check_collection(collection)].find_one, query)
+        if model and result:
+            result = cls.make_model(result, "find_one", db=db)
+        raise gen.Return(result)
 
     @classmethod
     @gen.coroutine
@@ -101,16 +90,7 @@ class BaseModel(Model):
         """
         c = cls.check_collection(collection)
         query = cls.process_query(query)
-        for i in cls.reconnect_amount():
-            try:
-                yield motor.Op(db[c].remove, query)
-            except ConnectionFailure as e:
-                exceed = yield cls.check_reconnect_tries_and_wait(i,
-                    'remove_entries')
-                if exceed:
-                    raise e
-            else:
-                return
+        yield motor.Op(db[c].remove, query)
 
     @gen.coroutine
     def remove(self, db, collection=None):
@@ -135,18 +115,9 @@ class BaseModel(Model):
         db = db or self.db
         c = self.check_collection(collection)
         data = self.get_data_for_save(ser)
-        result = None
-        for i in self.reconnect_amount():
-            try:
-                result = yield motor.Op(db[c].save, data)
-            except ConnectionFailure as e:
-                exceed = yield self.check_reconnect_tries_and_wait(i, 'save')
-                if exceed:
-                    raise e
-            else:
-                if result:
-                    self._id = result
-                return
+        result = yield motor.Op(db[c].save, data)
+        if result:
+            self._id = result
 
     @gen.coroutine
     def insert(self, db=None, collection=None, ser=None, **kwargs):
@@ -163,17 +134,9 @@ class BaseModel(Model):
         db = db or self.db
         c = self.check_collection(collection)
         data = self.get_data_for_save(ser)
-        for i in self.reconnect_amount():
-            try:
-                result = yield motor.Op(db[c].insert, data, **kwargs)
-            except ConnectionFailure as e:
-                exceed = yield self.check_reconnect_tries_and_wait(i, 'insert')
-                if exceed:
-                    raise e
-            else:
-                if result:
-                    self._id = result
-                return
+        result = yield motor.Op(db[c].insert, data, **kwargs)
+        if result:
+            self._id = result
 
     @gen.coroutine
     def update(self, db=None, query=None, collection=None, update=None, ser=None,
@@ -208,18 +171,10 @@ class BaseModel(Model):
             query = {"_id": _id}
         if update is None:
             data = {"$set": data}
-        for i in self.reconnect_amount():
-            try:
-                result = yield motor.Op(db[c].update,
-                    query, data, upsert=upsert, multi=multi)
-            except ConnectionFailure as e:
-                exceed = yield self.check_reconnect_tries_and_wait(i,
-                    'update')
-                if exceed:
-                    raise e
-            else:
-                logger.debug("Update result: {0}".format(result))
-                raise gen.Return(result)
+        result = yield motor.Op(db[c].update, query, data, upsert=upsert,
+                                multi=multi)
+        logger.debug("Update result: {0}".format(result))
+        raise gen.Return(result)
 
     @classmethod
     def get_cursor(cls, db, query, collection=None, fields={}):
@@ -240,54 +195,21 @@ class BaseModel(Model):
             cursor = ExampleModel.get_cursor(self.db, {"first_name": "Hello"})
             objects = yield ExampleModel.find(cursor)
         """
-        result = None
         list_len = list_len or cls.find_list_len() or MAX_FIND_LIST_LEN
-        for i in cls.reconnect_amount():
-            try:
-                result = yield motor.Op(cursor.to_list, list_len)
-            except ConnectionFailure as e:
-                exceed = yield cls.check_reconnect_tries_and_wait(i, 'find')
-                if exceed:
-                    raise e
-            else:
-                if model:
-                    field_names_set = set(cls._fields.keys())
-                    for i in range(len(result)):
-                        result[i] = cls.make_model(
-                            result[i], "find", field_names_set)
-                raise gen.Return(result)
+        result = yield motor.Op(cursor.to_list, list_len)
+        if model:
+            field_names_set = set(cls._fields.keys())
+            for i in range(len(result)):
+                result[i] = cls.make_model(
+                    result[i], "find", field_names_set)
+        raise gen.Return(result)
 
     @classmethod
     @gen.coroutine
     def aggregate(cls, db, pipe_list, collection=None):
         c = cls.check_collection(collection)
-        for i in cls.reconnect_amount():
-            try:
-                result = yield motor.Op(db[c].aggregate, pipe_list)
-            except ConnectionFailure as e:
-                exceed = yield cls.check_reconnect_tries_and_wait(i,
-                    'aggregate')
-                if exceed:
-                    raise e
-            else:
-                raise gen.Return(result)
-
-    @staticmethod
-    def reconnect_amount():
-        return range(MONGO_DB['reconnect_tries'] + 1)
-
-    @classmethod
-    @gen.coroutine
-    def check_reconnect_tries_and_wait(cls, reconnect_number, func_name):
-        if reconnect_number >= MONGO_DB['reconnect_tries']:
-            raise gen.Return(True)
-        else:
-            timeout = MONGO_DB['reconnect_timeout']
-            logger.warning("ConnectionFailure #{0} in {1}.{2}. Waiting {3} seconds"
-                .format(
-                    reconnect_number + 1, cls.__name__, func_name, timeout))
-            io_loop = ioloop.IOLoop.instance()
-            yield gen.Task(io_loop.add_timeout, timedelta(seconds=timeout))
+        result = yield motor.Op(db[c].aggregate, pipe_list)
+        raise gen.Return(result)
 
     def get_data_for_save(self, ser):
         data = ser or self.to_primitive()
@@ -316,24 +238,22 @@ class BaseModel(Model):
         return cls(raw_data=data, db=db)
 
 
-class UserModel(BaseModel):
-    first_name = StringType(default='')
-    last_name = StringType(default='')
+class User(BaseModel):
+    name = StringType(default='')
     email = EmailType(required=True)
+    phone = StringType(default='', regex=phone_pattern)
+    city_id = StringType(default='')
     photo = StringType(default='')
-    provider = StringType(default='')
-    provider_id = StringType(default='')
+    birth_date = DateType(default=None)
     password_hash = StringType(default='')
     password_salt = StringType(default='')
     created_at = DateTimeType(default=datetime.now)
-    superuser = BooleanType(default=False)
-
-    verbose_name = "User"
-    verbose_name_plural = "Users"
 
     MONGO_COLLECTION = 'accounts'
     NEED_SYNC = True
-    INDEXES = ({'name': 'email', 'unique': True}, {'name': 'provider'},)
+    INDEXES = (
+        {'name': 'email', 'unique': True},
+    )
 
     def check_password(self, password):
         return check_pass(password, self.password_hash, self.password_salt)
@@ -342,4 +262,16 @@ class UserModel(BaseModel):
         self.password_salt, self.password_hash = make_pass(password)
 
     def __str__(self):
-        return "User %s" % (self.email or self._id)
+        return "User {0} ({1})".format(self.name or self._id, self.email)
+
+
+class Country(BaseModel):
+    pass
+
+
+class City(BaseModel):
+    pass
+
+
+class Event(BaseModel):
+    pass
