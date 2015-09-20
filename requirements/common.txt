@@ -1,0 +1,9 @@
+invoke==0.11.1
+Jinja2==2.8
+motor==0.4.1
+pycket==0.3.0
+redis==2.10.3
+schematics==1.1.0
+tornado==4.2.1
+WTForms==2.0.2
+wtforms-tornado==0.0.2
