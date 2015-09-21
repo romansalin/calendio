@@ -16,6 +16,10 @@ logger = logging.getLogger(__name__)
 
 
 class BaseHandler(RequestHandler, SessionMixin):
+    def __init__(self, application, request, **kwargs):
+        self._current_user_object = None
+        super(BaseHandler, self).__init__(application, request, **kwargs)
+
     def render_string(self, template_name, **context):
         context.update({
             'xsrf': self.xsrf_form_html,
@@ -53,16 +57,14 @@ class BaseHandler(RequestHandler, SessionMixin):
 
     @gen.coroutine
     def get_current_user_object(self):
-        if self.current_user is not None:
-            # TODO cache
-            user = yield self.db.accounts.find_one({'_id': self.current_user})
-        else:
-            user = None
-        raise gen.Return(user)
+        if not self._current_user_object and self.current_user is not None:
+            self._current_user_object = yield self.db.accounts.find_one(
+                {'email': self.current_user})
+        raise gen.Return(self._current_user_object)
 
 
 class AuthMixin(object):
-    def set_current_user(self, user):
+    def set_cookie(self, user):
         if user:
             self.set_secure_cookie('user', tornado.escape.json_encode(user))
         else:
@@ -129,9 +131,15 @@ class SignupHandler(BaseHandler, AuthMixin):
 
 
 class ProfileHandler(BaseHandler, AuthMixin):
+    @gen.coroutine
     @authenticated()
     def get(self):
-        self.render('account/profile.html', form=ProfileForm())
+        obj = yield self.get_current_user_object()
+        response = dict(
+            form=ProfileForm(),
+            obj=obj,
+        )
+        self.render('account/profile.html', **response)
 
     @gen.coroutine
     @authenticated()
@@ -148,7 +156,12 @@ class ProfileHandler(BaseHandler, AuthMixin):
         #         self.set_session(str(user.email))
         #         self.redirect(self.reverse_url('index'))
         #         return
-        self.render('account/profile.html', form=form)
+        obj = yield self.get_current_user_object()
+        response = dict(
+            form=ProfileForm(),
+            obj=obj,
+        )
+        self.render('account/profile.html', **response)
 
 
 class EventsHandler(BaseHandler, AuthMixin):

@@ -262,7 +262,7 @@ class User(BaseModel):
         self.password_salt, self.password_hash = make_pass(password)
 
     def __str__(self):
-        return "User {0} ({1})".format(self.name or self._id, self.email)
+        return "{0} ({1})".format(self.name or self._id, self.email)
 
 
 class Country(BaseModel):

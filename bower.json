@@ -15,6 +15,7 @@
   ],
   "dependencies": {
     "bootstrap": "~3.3.5",
+    "bootstrap-fileinput": "~4.2.7",
     "eonasdan-bootstrap-datetimepicker": "~4.17.37",
     "jquery": "~2.1.4",
     "react": "~0.13.3"

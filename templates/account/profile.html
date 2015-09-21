@@ -11,7 +11,7 @@
         {% endif %}
 
         <hr class="colorgraph">
-            {{ forms.render_form(form, action_url=reverse_url('profile'), action_text='Save', xsrf=xsrf, extra=extra) }}
+            {{ forms.render_form(form, action_url=reverse_url('profile'), action_text='Save', xsrf=xsrf, obj=obj, extra=extra) }}
          <hr class="colorgraph">
     </div>
 </div>
