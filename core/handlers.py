@@ -9,7 +9,7 @@ from pycket.session import SessionMixin
 from pymongo.errors import DuplicateKeyError
 
 from .utils import is_loggedin, authenticated
-from .forms import RegistrationForm, LoginForm
+from .forms import RegistrationForm, LoginForm, ProfileForm
 from .models import User
 
 logger = logging.getLogger(__name__)
@@ -74,25 +74,25 @@ class AuthMixin(object):
 
 
 class MainHandler(BaseHandler):
-    @authenticated(redirect_to='login')
+    @authenticated()
     def get(self):
         self.render('index.html')
 
 
 class LoginHandler(BaseHandler, AuthMixin):
-    @is_loggedin(redirect_to='index')
+    @is_loggedin()
     def get(self):
         self.render('account/login.html', form=LoginForm())
 
     @gen.coroutine
-    @is_loggedin(redirect_to='index')
+    @is_loggedin()
     def post(self):
         form = LoginForm(self.request.arguments)
         if form.validate():
             user = yield User.find_one(self.db, {
                 'email': form.email.data})
             if user and user.check_password(form.password.data):
-                self.set_session(str(user._id))
+                self.set_session(str(user.email))
                 self.redirect(self.reverse_url('index'))
                 return
         form.set_nonfield_error('email_or_password_error')
@@ -105,13 +105,13 @@ class LogoutHandler(BaseHandler):
         self.redirect(self.reverse_url('index'))
 
 
-class SignupHandler(AuthMixin, BaseHandler):
-    @is_loggedin(redirect_to='index')
+class SignupHandler(BaseHandler, AuthMixin):
+    @is_loggedin()
     def get(self):
         self.render('account/signup.html', form=RegistrationForm())
 
     @gen.coroutine
-    @is_loggedin(redirect_to='index')
+    @is_loggedin()
     def post(self):
         form = RegistrationForm(self.request.arguments)
         if form.validate():
@@ -122,10 +122,37 @@ class SignupHandler(AuthMixin, BaseHandler):
             except DuplicateKeyError:
                 form.set_field_error('email', 'email_occupied')
             else:
-                self.set_session(str(user._id))
+                self.set_session(str(user.email))
                 self.redirect(self.reverse_url('index'))
                 return
         self.render('account/signup.html', form=form)
+
+
+class ProfileHandler(BaseHandler, AuthMixin):
+    @authenticated()
+    def get(self):
+        self.render('account/profile.html', form=ProfileForm())
+
+    @gen.coroutine
+    @authenticated()
+    def post(self):
+        form = ProfileForm(self.request.arguments)
+        # if form.validate():
+        #     user = form.get_object()
+        #     user.set_password(user.password)
+        #     try:
+        #         yield user.insert(self.db)
+        #     except DuplicateKeyError:
+        #         form.set_field_error('email', 'email_occupied')
+        #     else:
+        #         self.set_session(str(user.email))
+        #         self.redirect(self.reverse_url('index'))
+        #         return
+        self.render('account/profile.html', form=form)
+
+
+class EventsHandler(BaseHandler, AuthMixin):
+    pass
 
 
 class WSocketHandler(WebSocketHandler):

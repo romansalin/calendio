@@ -1,0 +1,100 @@
+{% macro form_by_type(field) %}
+    {% if field.type == 'DateTimeField' %}
+        {{ field(class_="form-control input-lg datetime") }}
+    {% elif field.type == 'DateField' %}
+        {{ field(class_="form-control input-lg date") }}
+    {% else %}
+        {{ field(class_="form-control input-lg") }}
+    {% endif %}
+{% endmacro %}
+
+
+{% macro render_field(field, label_visible=true) -%}
+
+    <div class="form-group {% if field.errors %}has-error{% endif %} {{ kwargs.pop('class_', '') }}">
+        {% if (field.type != 'HiddenField' or field.type !='CSRFTokenField') and label_visible %}
+            {{ field.label }}
+        {% endif %}
+        {{ field(class_='form-control', **kwargs) }}
+        {% if field.errors %}
+            {% for e in field.errors %}
+                <p class="help-block">{{ e }}</p>
+            {% endfor %}
+        {% endif %}
+    </div>
+{%- endmacro %}
+
+
+{% macro render_checkbox_field(field) -%}
+    <div class="checkbox">
+        <label>
+            {{ field(type='checkbox', **kwargs) }} {{ field.label }}
+        </label>
+    </div>
+{%- endmacro %}
+
+
+{% macro render_radio_field(field) -%}
+    {% for value, label, _ in field.iter_choices() %}
+        <div class="radio">
+            <label>
+                <input type="radio" name="{{ field.id }}" id="{{ field.id }}" value="{{ value }}">{{ label }}
+            </label>
+        </div>
+    {% endfor %}
+{%- endmacro %}
+
+
+{% macro render_date_field(field, label_visible=true) -%}
+<div class="row">
+    <div class='col-sm-6'>
+        <div class="form-group">
+            {% if (field.type != 'HiddenField' or field.type !='CSRFTokenField') and label_visible %}
+                {{ field.label }}
+            {% endif %}
+            <div class='input-group date' id='datetimepicker1'>
+                {{ field(type='text', class="form-control", **kwargs) }}
+                <span class="input-group-addon">
+                    <span class="glyphicon glyphicon-calendar"></span>
+                </span>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript">
+        $(function () {
+            $('#datetimepicker1').datetimepicker({
+                format: 'DD.MM.YYYY'
+            });
+        });
+    </script>
+</div>
+{%- endmacro %}
+
+
+{% macro render_form(form, action_url='', action_text='Submit', class_='', btn_class='btn btn-default', xsrf=None, extra=None) -%}
+    <form method="POST" action="{{ action_url }}" role="form" class="{{ class_ }}">
+        {% if xsrf %}
+            {{ xsrf() }}
+        {% endif %}
+        {{ form.hidden_tag() if form.hidden_tag }}
+        {% if caller %}
+            {{ caller() }}
+        {% else %}
+            {% for f in form %}
+                {% if f.type == 'BooleanField' %}
+                    {{ render_checkbox_field(f) }}
+                {% elif f.type == 'RadioField' %}
+                    {{ render_radio_field(f) }}
+                {% elif f.type == 'DateField' %}
+                    {{ render_date_field(f) }}
+                {% else %}
+                    {{ render_field(f) }}
+                {% endif %}
+            {% endfor %}
+            {% if extra %}
+                {{ extra }}
+            {% endif %}
+        {% endif %}
+        <button type="submit" class="{{ btn_class }}">{{ action_text }} </button>
+    </form>
+{%- endmacro %}

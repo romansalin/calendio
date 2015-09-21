@@ -2,11 +2,12 @@ import logging
 
 from wtforms_tornado import Form as WTForm
 from schematics.exceptions import ValidationError as ModelValidationError
-from wtforms import StringField, PasswordField, validators
+from wtforms import (StringField, PasswordField, DateField, SelectField,
+                     validators)
 from wtforms.validators import ValidationError
 
 from .models import User
-from .validators import name_validator
+from .validators import name_validator, phone_validator
 
 logger = logging.getLogger(__name__)
 
@@ -97,8 +98,19 @@ class LoginForm(Form):
     }
 
 
-class AccountForm(Form):
-    pass
+class ProfileForm(Form):
+    name = StringField('Name', [name_validator])
+    email = StringField('Email', [validators.InputRequired(),
+                                  validators.Email()])
+    phone = StringField('Phone', [phone_validator])
+    # city_id = SelectField('City')
+    photo = StringField('Photo')
+    birth_date = DateField('Date of Birth', [])
+
+    _model = User
+    text_errors = {
+
+    }
 
 
 class EventForm(Form):

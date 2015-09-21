@@ -239,7 +239,7 @@ class BaseModel(Model):
 
 
 class User(BaseModel):
-    name = StringType(default='', max_length=None)
+    name = StringType(default='', max_length=50)
     email = EmailType(required=True)
     phone = StringType(default=None)
     city_id = StringType(default=None)

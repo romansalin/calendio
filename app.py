@@ -7,7 +7,8 @@ from tornado.options import options
 
 import settings as conf
 from core.handlers import (MainHandler, LoginHandler, LogoutHandler,
-                           SignupHandler, WSocketHandler)
+                           SignupHandler, WSocketHandler, ProfileHandler,
+                           EventsHandler)
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +27,8 @@ class CalendIO(Application):
             url(r'/login', LoginHandler, name='login'),
             url(r'/logout', LogoutHandler, name='logout'),
             url(r'/signup', SignupHandler, name='signup'),
-            # url(r'/profile', ProfileHandler, name='profile'),
-            # url(r'/calend', CalendHandler, name='calend'),
+            url(r'/profile', ProfileHandler, name='profile'),
+            url(r'/events', EventsHandler, name='events'),
             url(r'/ws', WSocketHandler),
             url(r'/static/(.*)', StaticFileHandler, {'path': 'static/'}),
         ]
