@@ -19,6 +19,10 @@
 				</div>
 			{% endfor %}
 
+            {% for e in form.errors.whole_form %}
+                <li>{{ e }}</li>
+            {% endfor %}
+
 			<hr class="colorgraph">
 			<div class="row">
 				<div class="col-xs-12"><input id="login-button" type="submit" value="Login" class="btn btn-success btn-block btn-lg" tabindex="7"></div>

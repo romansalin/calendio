@@ -1,4 +1,7 @@
+import logging
 from invoke import run, task
+
+logger = logging.getLogger(__name__)
 
 
 @task
@@ -41,3 +44,5 @@ def syncdb():
             for index in model.INDEXES:
                 i_name = index.pop('name')
                 db[collection].create_index(i_name, **index)
+                logger.info('Create index on {0}'.format(collection))
+    logger.info('All collections is synchronized!')

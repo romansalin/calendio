@@ -8,9 +8,9 @@ import tornado.escape
 from pycket.session import SessionMixin
 from pymongo.errors import DuplicateKeyError
 
-from core.utils import is_loggedin
-from core.forms import RegistrationForm, LoginForm
-from core.models import User
+from .utils import is_loggedin, authenticated
+from .forms import RegistrationForm, LoginForm
+from .models import User
 
 logger = logging.getLogger(__name__)
 
@@ -37,11 +37,11 @@ class BaseHandler(RequestHandler, SessionMixin):
 
     @property
     def is_xhr(self):
-        return self.request.headers.get('X-Requested-With', '').lower() \
-            == 'xmlhttprequest'
+        return (self.request.headers.get('X-Requested-With', '').lower() ==
+                'xmlhttprequest')
 
     def render_json(self, data):
-        self.set_header("Content-Type", "application/json")
+        self.set_header('Content-Type', 'application/json')
         self.write(json.dumps(data))
 
     def get_current_user(self):
@@ -49,13 +49,13 @@ class BaseHandler(RequestHandler, SessionMixin):
 
     @property
     def db(self):
-        return self.application.db
+        return self.application.settings['db']
 
     @gen.coroutine
     def get_current_user_object(self):
         if self.current_user is not None:
             # TODO cache
-            user = yield self.db.accounts.find_one({"_id": self.current_user})
+            user = yield self.db.accounts.find_one({'_id': self.current_user})
         else:
             user = None
         raise gen.Return(user)
@@ -74,14 +74,12 @@ class AuthMixin(object):
 
 
 class MainHandler(BaseHandler):
-    # @tornado.web.authenticated
-    @gen.coroutine
+    @authenticated(redirect_to='login')
     def get(self):
         self.render('index.html')
 
 
 class LoginHandler(BaseHandler, AuthMixin):
-
     @is_loggedin(redirect_to='index')
     def get(self):
         self.render('account/login.html', form=LoginForm())
@@ -92,16 +90,12 @@ class LoginHandler(BaseHandler, AuthMixin):
         form = LoginForm(self.request.arguments)
         if form.validate():
             user = yield User.find_one(self.db, {
-                "email": form.email.data})
-            if user:
-                if user.check_password(form.password.data):
-                    self.set_session(str(user.email or user._id))
-                    self.redirect(self.reverse_url('index'))
-                    return
-                else:
-                    form.set_field_error('password', 'wrong_password')
-            else:
-                form.set_field_error('email', 'not_found')
+                'email': form.email.data})
+            if user and user.check_password(form.password.data):
+                self.set_session(str(user._id))
+                self.redirect(self.reverse_url('index'))
+                return
+        form.set_nonfield_error('email_or_password_error')
         self.render('account/login.html', form=form)
 
 
@@ -116,7 +110,7 @@ class SignupHandler(AuthMixin, BaseHandler):
     def get(self):
         self.render('account/signup.html', form=RegistrationForm())
 
-    @tornado.gen.coroutine
+    @gen.coroutine
     @is_loggedin(redirect_to='index')
     def post(self):
         form = RegistrationForm(self.request.arguments)
@@ -125,12 +119,10 @@ class SignupHandler(AuthMixin, BaseHandler):
             user.set_password(user.password)
             try:
                 yield user.insert(self.db)
-                # print user
             except DuplicateKeyError:
                 form.set_field_error('email', 'email_occupied')
             else:
-                # user save succeeded
-                self.set_session(str(user.email or user._id))
+                self.set_session(str(user._id))
                 self.redirect(self.reverse_url('index'))
                 return
         self.render('account/signup.html', form=form)

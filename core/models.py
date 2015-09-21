@@ -8,7 +8,7 @@ from schematics.models import Model
 from schematics.types import (NumberType, StringType, EmailType, DateType,
                               DateTimeType)
 
-from .utils import check_pass, make_pass, phone_pattern
+from .utils import check_pass, make_pass
 
 logger = logging.getLogger(__name__)
 MAX_FIND_LIST_LEN = 100
@@ -139,8 +139,8 @@ class BaseModel(Model):
             self._id = result
 
     @gen.coroutine
-    def update(self, db=None, query=None, collection=None, update=None, ser=None,
-            upsert=False, multi=False):
+    def update(self, db=None, query=None, collection=None, update=None,
+               ser=None, upsert=False, multi=False):
         """
         Updates the object. If object has _id, then try to update the object.
         If object with given _id is not found in database, or object doesn't
@@ -239,11 +239,11 @@ class BaseModel(Model):
 
 
 class User(BaseModel):
-    name = StringType(default='')
+    name = StringType(default='', max_length=None)
     email = EmailType(required=True)
-    phone = StringType(default='', regex=phone_pattern)
-    city_id = StringType(default='')
-    photo = StringType(default='')
+    phone = StringType(default=None)
+    city_id = StringType(default=None)
+    photo = StringType(default=None)
     birth_date = DateType(default=None)
     password_hash = StringType(default='')
     password_salt = StringType(default='')

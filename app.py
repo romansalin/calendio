@@ -6,7 +6,8 @@ from tornado.httpserver import HTTPServer
 from tornado.options import options
 
 import settings as conf
-from core.handlers import *
+from core.handlers import (MainHandler, LoginHandler, LogoutHandler,
+                           SignupHandler, WSocketHandler)
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class CalendIO(Application):
             url(r'/ws', WSocketHandler),
             url(r'/static/(.*)', StaticFileHandler, {'path': 'static/'}),
         ]
+
         super(CalendIO, self).__init__(url_patterns, *args,
                                        **dict(conf.APP_SETTINGS, **kwargs))
 

@@ -33,8 +33,6 @@ $ python app.py
 ## TODO
 
 - сборка assets
-- form validation
-- вынести handlers
 
 http://habrahabr.ru/post/231201/
 https://github.com/bgolub/tornado-blog/blob/master/blog.py
