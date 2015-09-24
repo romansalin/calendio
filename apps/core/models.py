@@ -1,14 +1,10 @@
 import logging
-from datetime import datetime
 
 from bson.objectid import ObjectId
 from tornado import gen
 import motor
 from schematics.models import Model
-from schematics.types import (NumberType, StringType, EmailType, DateType,
-                              DateTimeType)
-
-from .utils import check_pass, make_pass
+from schematics.types import NumberType
 
 logger = logging.getLogger(__name__)
 MAX_FIND_LIST_LEN = 100
@@ -236,42 +232,3 @@ class BaseModel(Model):
             for new_key in new_keys:
                 del data[new_key]
         return cls(raw_data=data, db=db)
-
-
-class User(BaseModel):
-    name = StringType(default='', max_length=50)
-    email = EmailType(required=True)
-    phone = StringType(default=None)
-    city_id = StringType(default=None)
-    photo = StringType(default=None)
-    birth_date = DateType(default=None)
-    password_hash = StringType(default='')
-    password_salt = StringType(default='')
-    created_at = DateTimeType(default=datetime.now)
-
-    MONGO_COLLECTION = 'accounts'
-    NEED_SYNC = True
-    INDEXES = (
-        {'name': 'email', 'unique': True},
-    )
-
-    def check_password(self, password):
-        return check_pass(password, self.password_hash, self.password_salt)
-
-    def set_password(self, password):
-        self.password_salt, self.password_hash = make_pass(password)
-
-    def __str__(self):
-        return "{0} ({1})".format(self.name or self._id, self.email)
-
-
-class Country(BaseModel):
-    pass
-
-
-class City(BaseModel):
-    pass
-
-
-class Event(BaseModel):
-    pass

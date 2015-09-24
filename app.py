@@ -6,9 +6,11 @@ from tornado.httpserver import HTTPServer
 from tornado.options import options
 
 import settings as conf
-from core.handlers import (MainHandler, LoginHandler, LogoutHandler,
-                           SignupHandler, WSocketHandler, ProfileHandler,
-                           EventsHandler)
+from apps.home.handlers import MainHandler
+from apps.account.handlers import (LoginHandler, LogoutHandler, SignupHandler,
+                                   ProfileHandler)
+from apps.events.handlers import EventsHandler, EventsWebSocketHandler
+
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +31,7 @@ class CalendIO(Application):
             url(r'/signup', SignupHandler, name='signup'),
             url(r'/profile', ProfileHandler, name='profile'),
             url(r'/events', EventsHandler, name='events'),
-            url(r'/ws', WSocketHandler),
+            url(r'/ws', EventsWebSocketHandler, name='ws'),
             url(r'/static/(.*)', StaticFileHandler, {'path': 'static/'}),
         ]
 
@@ -40,7 +42,6 @@ class CalendIO(Application):
 def main():
     http_server = HTTPServer(CalendIO(), xheaders=True)
     http_server.listen(options.port)
-    # IOLoop.current().add_callback(send_event_notification)
     loop = IOLoop.instance()
     logger.info('Server running on http://localhost:{0}'.format(options.port))
     loop.start()
