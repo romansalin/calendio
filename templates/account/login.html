@@ -19,9 +19,11 @@
 				</div>
 			{% endfor %}
 
+            <ul class="error">
             {% for e in form.errors.whole_form %}
                 <li>{{ e }}</li>
             {% endfor %}
+            </ul>
 
 			<hr class="colorgraph">
 			<div class="row">

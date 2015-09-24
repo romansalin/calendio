@@ -11,7 +11,29 @@
         {% endif %}
 
         <hr class="colorgraph">
-            {{ forms.render_form(form, action_url=reverse_url('profile'), action_text='Save', xsrf=xsrf, obj=obj, extra=extra) }}
+            <form method="POST" action="{{ reverse_url('profile') }}" role="form" id="profile">
+                {{ xsrf() }}
+
+                {{ form.hidden_tag() if form.hidden_tag }}
+
+                {% for f in form %}
+                    {% if f.name == 'birth_date' %}
+                        {{ forms.render_date_field(f, value=obj[f.name]) }}
+                    {% elif f.name == 'photo' %}
+                        {{ forms.render_file_field(f, value=obj[f.name]) }}
+                    {% else %}
+                        {{ forms.render_field(f, value=obj[f.name]) }}
+                    {% endif %}
+                {% endfor %}
+
+                <ul class="error">
+                {% for e in form.errors.whole_form %}
+                    <li>{{ e }}</li>
+                {% endfor %}
+                </ul>
+
+                <button type="submit" class="btn btn-default">Save</button>
+            </form>
          <hr class="colorgraph">
     </div>
 </div>
